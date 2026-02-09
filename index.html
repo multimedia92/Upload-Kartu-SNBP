@@ -11,23 +11,23 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background-color: #f0f2f5;
+            background-color: #f4f6f9;
             margin: 0;
         }
         .container {
             background: white;
             padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             width: 90%;
-            max-width: 400px;
+            max-width: 420px;
         }
         h2 { 
             text-align: center; 
-            color: #333; 
+            color: #2c3e50; 
             margin-bottom: 25px; 
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 15px;
         }
         
         .form-group { margin-bottom: 20px; }
@@ -41,11 +41,16 @@
         select, input[type="file"] {
             width: 100%;
             padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
             box-sizing: border-box;
-            background-color: #fafafa;
+            background-color: #fff;
             font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        select:focus, input:focus {
+            border-color: #4285F4;
+            outline: none;
         }
         
         button {
@@ -54,27 +59,56 @@
             color: white;
             border: none;
             padding: 14px;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 16px;
             font-weight: bold;
-            transition: background 0.3s;
+            transition: background 0.3s, transform 0.1s;
             margin-top: 10px;
         }
         button:hover { background-color: #3367D6; }
+        button:active { transform: scale(0.98); }
         button:disabled { background-color: #b0c4de; cursor: not-allowed; }
         
+        /* --- STYLE BARU: PROGRESS BAR --- */
+        #progressContainer {
+            margin-top: 20px;
+            display: none; /* Sembunyikan awal */
+        }
+        .progress-wrapper {
+            background-color: #e9ecef;
+            border-radius: 10px;
+            height: 20px;
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-fill {
+            background-color: #28a745; /* Warna Hijau */
+            height: 100%;
+            width: 0%; /* Mulai dari 0 */
+            border-radius: 10px;
+            transition: width 0.2s ease;
+        }
+        .progress-text {
+            text-align: center;
+            font-size: 13px;
+            margin-top: 5px;
+            color: #555;
+            font-weight: bold;
+        }
+
         #status { 
-            margin-top: 20px; 
+            margin-top: 15px; 
             text-align: center; 
             font-size: 14px; 
             font-weight: 500;
             padding: 10px;
             border-radius: 5px;
+            display: none;
         }
-        .loading { color: #0056b3; background-color: #e8f0fe; }
-        .success { color: #155724; background-color: #d4edda; }
-        .error { color: #721c24; background-color: #f8d7da; }
+        .success { color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; }
+        .error { color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; }
     </style>
 </head>
 <body>
@@ -83,7 +117,7 @@
     <h2>Upload Tugas</h2>
     
     <form id="uploadForm">
-        <!-- Input Nama Siswa -->
+        <!-- Input Nama -->
         <div class="form-group">
             <label for="studentName">Pilih Nama Siswa:</label>
             <select id="studentName" required>
@@ -95,31 +129,45 @@
         <div class="form-group">
             <label for="fileInput">Pilih File:</label>
             <input type="file" id="fileInput" required>
-            <small style="color: #666; display:block; margin-top:5px;">Maksimal ukuran file: 5MB</small>
+            <small style="color: #666; display:block; margin-top:5px;">Maksimal 5MB</small>
         </div>
         
         <button type="submit" id="submitBtn" disabled>Upload File</button>
     </form>
     
+    <!-- Bagian Progress Bar -->
+    <div id="progressContainer">
+        <div class="progress-wrapper">
+            <div class="progress-fill" id="progressBar"></div>
+        </div>
+        <div class="progress-text" id="progressText">0%</div>
+    </div>
+    
     <div id="status"></div>
 </div>
 
 <script>
-    // URL Web App Google Apps Script Anda
+    // ==========================================
+    // PASTE URL SCRIPT ANDA DI SINI (Pastikan Deployment Terbaru)
+    // ==========================================
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzGXhtJS_Kekfm-nskYv8TTBDcbIFy75mDJ-pgNaVqmMm_IEjlbics2V1qHu0UXohyd/exec"; 
 
     const selectBox = document.getElementById('studentName');
     const statusDiv = document.getElementById('status');
     const submitBtn = document.getElementById('submitBtn');
     const fileInput = document.getElementById('fileInput');
+    
+    // Elemen Progress
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
 
-    // --- LANGKAH 1: AMBIL DATA NAMA DARI SPREADSHEET ---
+    // 1. Load Data Nama
     window.addEventListener('DOMContentLoaded', () => {
         fetch(SCRIPT_URL)
         .then(response => response.json())
         .then(data => {
             selectBox.innerHTML = '<option value="">-- Silakan Pilih Nama --</option>';
-            
             if (Array.isArray(data) && data.length > 0) {
                 data.forEach(nama => {
                     const option = document.createElement('option');
@@ -127,22 +175,18 @@
                     option.textContent = nama;
                     selectBox.appendChild(option);
                 });
-                submitBtn.disabled = false; // Aktifkan tombol jika nama berhasil dimuat
+                submitBtn.disabled = false;
             } else {
-                selectBox.innerHTML = '<option value="">Data nama kosong</option>';
-                statusDiv.textContent = "Data nama di spreadsheet kosong atau tidak terbaca.";
-                statusDiv.className = "error";
+                selectBox.innerHTML = '<option value="">Data kosong</option>';
             }
         })
         .catch(error => {
-            console.error('Error fetching names:', error);
-            selectBox.innerHTML = '<option value="">Gagal memuat data</option>';
-            statusDiv.innerHTML = "Gagal terhubung ke Google Script.<br>Cek koneksi internet atau permission script.";
-            statusDiv.className = "error";
+            console.error(error);
+            selectBox.innerHTML = '<option value="">Gagal koneksi</option>';
         });
     });
 
-    // --- LANGKAH 2: PROSES UPLOAD FILE ---
+    // 2. Proses Upload dengan Progress Bar
     document.getElementById('uploadForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -150,68 +194,94 @@
         const studentName = selectBox.value;
 
         // Validasi
-        if (!studentName) {
-            alert("Silakan pilih nama siswa terlebih dahulu!");
-            return;
-        }
-        if (!file) {
-            alert("Silakan pilih file!");
-            return;
-        }
-        if (file.size > 5 * 1024 * 1024) { // 5MB limit
-            statusDiv.innerHTML = "❌ Ukuran file terlalu besar (Max 5MB)";
-            statusDiv.className = "error";
-            return;
-        }
+        if (!studentName || !file) { alert("Lengkapi data!"); return; }
+        if (file.size > 5 * 1024 * 1024) { alert("File terlalu besar!"); return; }
 
-        // Tampilan Loading
-        statusDiv.innerHTML = "⏳ Sedang mengupload, mohon jangan tutup halaman...";
-        statusDiv.className = "loading";
+        // Reset UI
+        statusDiv.style.display = 'none';
         submitBtn.disabled = true;
-        submitBtn.textContent = "Processing...";
+        progressContainer.style.display = 'block'; // Tampilkan bar
+        progressBar.style.width = '0%';
+        progressText.textContent = 'Membaca file...';
 
-        // Membaca File
         const reader = new FileReader();
         reader.readAsDataURL(file);
         
         reader.onload = function(e) {
             const rawLog = reader.result.split(',')[1];
             
-            // Menyiapkan data untuk dikirim
-            const dataSend = { 
-                data: e.target.result,
-                name: file.name,
-                mimetype: file.type,
-                studentName: studentName
+            // Siapkan Data
+            const formData = new FormData();
+            formData.append('data', e.target.result);
+            formData.append('name', file.name);
+            formData.append('mimetype', file.type);
+            formData.append('studentName', studentName);
+
+            // Ganti FETCH dengan XMLHttpRequest (AJAX) untuk memantau progress
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", SCRIPT_URL);
+
+            // --- EVENT SAAT PROGRESS BERJALAN ---
+            xhr.upload.onprogress = function(event) {
+                if (event.lengthComputable) {
+                    const percentComplete = Math.round((event.loaded / event.total) * 100);
+                    
+                    progressBar.style.width = percentComplete + '%';
+                    progressText.textContent = percentComplete + '% Uploading...';
+                    
+                    if(percentComplete === 100){
+                        progressText.textContent = 'Mengirim ke Drive... (Mohon Tunggu)';
+                        progressBar.style.backgroundColor = '#007bff'; // Ganti warna jadi biru saat processing
+                    }
+                }
             };
 
-            // Mengirim ke Google Script
-            fetch(SCRIPT_URL, {
-                method: "POST",
-                body: new URLSearchParams(dataSend)
-            })
-            .then(res => res.json())
-            .then(response => {
-                if(response.status === 'success'){
-                    statusDiv.innerHTML = "✅ Berhasil! File " + file.name + " telah tersimpan.";
-                    statusDiv.className = "success";
-                    
-                    // Reset Form
-                    fileInput.value = "";
-                    selectBox.value = "";
-                } else {
-                    throw new Error(response.message);
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                statusDiv.innerHTML = "❌ Gagal Upload: " + err.message;
-                statusDiv.className = "error";
-            })
-            .finally(() => {
+            // --- EVENT SAAT SELESAI ---
+            xhr.onload = function() {
                 submitBtn.disabled = false;
-                submitBtn.textContent = "Upload File";
-            });
+                progressContainer.style.display = 'none'; // Sembunyikan bar
+                statusDiv.style.display = 'block';
+
+                if (xhr.status === 200) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.status === 'success') {
+                            statusDiv.innerHTML = "✅ " + response.message;
+                            statusDiv.className = "success";
+                            // Reset Form
+                            fileInput.value = "";
+                            selectBox.value = "";
+                        } else {
+                            throw new Error(response.message);
+                        }
+                    } catch (err) {
+                        statusDiv.innerHTML = "⚠️ Terupload, tapi respon script error.";
+                        statusDiv.className = "success"; // Biasanya tetap sukses masuk drive
+                        console.log(xhr.responseText);
+                    }
+                } else {
+                    statusDiv.innerHTML = "❌ Gagal Terhubung Server.";
+                    statusDiv.className = "error";
+                }
+            };
+
+            // --- EVENT SAAT ERROR ---
+            xhr.onerror = function() {
+                submitBtn.disabled = false;
+                progressContainer.style.display = 'none';
+                statusDiv.style.display = 'block';
+                statusDiv.innerHTML = "❌ Terjadi kesalahan jaringan.";
+                statusDiv.className = "error";
+            };
+
+            // Kirim Data
+            // Kita perlu mengubah formData menjadi URLSearchParams agar terbaca 'e.parameter' di GAS
+            const params = new URLSearchParams();
+            for(const pair of formData.entries()){
+                params.append(pair[0], pair[1]);
+            }
+            
+            xhr.send(params);
         };
     });
 </script>

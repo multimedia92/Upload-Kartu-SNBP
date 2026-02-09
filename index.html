@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload ke Google Drive</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f2f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 300px;
+        }
+        input[type="file"] {
+            margin: 20px 0;
+        }
+        button {
+            background-color: #4285F4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #357ae8;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Upload File</h2>
+    <p>Simpan ke Google Drive</p>
+    
+    <form id="uploadForm">
+        <input type="file" id="fileInput" required>
+        <br>
+        <button type="submit" id="submitBtn">Upload Sekarang</button>
+    </form>
+    
+    <div id="status"></div>
+</div>
+
+<script>
+    // ==========================================
+    // GANTI URL DI BAWAH INI DENGAN URL DARI LANGKAH 1
+    // ==========================================
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzGXhtJS_Kekfm-nskYv8TTBDcbIFy75mDJ-pgNaVqmMm_IEjlbics2V1qHu0UXohyd/exec"; 
+
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const fileInput = document.getElementById('fileInput');
+        const file = fileInput.files[0];
+        const statusDiv = document.getElementById('status');
+        const btn = document.getElementById('submitBtn');
+
+        if (!file) {
+            statusDiv.innerHTML = "Pilih file terlebih dahulu!";
+            return;
+        }
+
+        // Validasi ukuran file (Google Script punya batas sekitar 50MB per eksekusi)
+        if (file.size > 5 * 1024 * 1024) { // Batas 5MB agar aman
+            statusDiv.innerHTML = "File terlalu besar (Maks 5MB)";
+            statusDiv.style.color = "red";
+            return;
+        }
+
+        statusDiv.innerHTML = "Sedang mengupload...";
+        statusDiv.style.color = "blue";
+        btn.disabled = true;
+
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        
+        reader.onload = function(e) {
+            const rawLog = reader.result.split(',')[1];
+            const dataSend = { 
+                data: e.target.result,
+                name: file.name,
+                mimetype: file.type
+            };
+
+            fetch(SCRIPT_URL, {
+                method: "POST",
+                body: new URLSearchParams(dataSend)
+            })
+            .then(res => res.json())
+            .then(response => {
+                if(response.status === 'success'){
+                    statusDiv.innerHTML = "Berhasil diupload!";
+                    statusDiv.style.color = "green";
+                    fileInput.value = ""; // Reset input
+                } else {
+                    statusDiv.innerHTML = "Gagal: " + response.message;
+                    statusDiv.style.color = "red";
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                statusDiv.innerHTML = "Terjadi kesalahan jaringan/script.";
+                statusDiv.style.color = "red";
+            })
+            .finally(() => {
+                btn.disabled = false;
+            });
+        };
+    });
+</script>
+
+</body>
+</html>
